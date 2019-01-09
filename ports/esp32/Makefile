@@ -342,6 +342,7 @@ SRC_C = \
 	machine_rtc.c \
 	machine_sdcard.c \
 	$(wildcard $(BOARD_DIR)/*.c) \
+	modsmartconfig.c \
 	$(SRC_MOD)
 
 EXTMOD_SRC_C = $(addprefix extmod/,\
