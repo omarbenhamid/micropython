@@ -33,6 +33,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
+#include "esp_heap_caps_init.h"
 #include "nvs_flash.h"
 #include "esp_task.h"
 #include "soc/cpu.h"
@@ -86,7 +87,7 @@ void mp_task(void *pvParameter) {
             break;
         case ESP_SPIRAM_SIZE_32MBITS:
         case ESP_SPIRAM_SIZE_64MBITS:
-            mp_task_heap_size = 4 * 1024 * 1024;
+            mp_task_heap_size = 3 * 1024 * 1024;
             break;
         default:
             // No SPIRAM, fallback to normal allocation
@@ -94,6 +95,7 @@ void mp_task(void *pvParameter) {
             mp_task_heap = malloc(mp_task_heap_size);
             break;
     }
+    heap_caps_add_region((intptr_t)(mp_task_heap + 3 * 1024 * 1024), (intptr_t)(mp_task_heap + 4 * 1024 * 1024 - 1));
     #else
     // Allocate the uPy heap using malloc and get the largest available region
     size_t mp_task_heap_size = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
@@ -117,7 +119,7 @@ soft_reset:
 
     // run boot-up scripts
     pyexec_frozen_module("_boot.py");
-    pyexec_file_if_exists("boot.py");
+    pyexec_file_if_exists("/sdcard/boot.py");
     if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
         pyexec_file_if_exists("main.py");
     }
@@ -156,6 +158,7 @@ soft_reset:
 }
 
 void app_main(void) {
+    esp_log_level_set("*", ESP_LOG_NONE);
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();

@@ -296,6 +296,15 @@ LIBC_LIBM = $(ESPCOMP)/newlib/lib/libc.a $(ESPCOMP)/newlib/lib/libm.a
 endif
 
 ################################################################################
+# ADF environment
+ifeq ($(ADF_PATH),)
+$(info The ADF_PATH variable has not been set, please set it to the root of the esp-adf repository.)
+$(error ADF_PATH not set)
+endif
+
+include $(ADF_PATH)/micropython_adf/mpadfenv.mk
+
+################################################################################
 # List of MicroPython source and object files
 
 SRC_C = \
@@ -353,6 +362,8 @@ DRIVERS_SRC_C = $(addprefix drivers/,\
 	bus/softspi.c \
 	dht/dht.c \
 	)
+
+include $(ADF_PATH)/micropython_adf/mod/mpmod.mk
 
 OBJ_MP =
 OBJ_MP += $(PY_O)
@@ -601,6 +612,8 @@ else
 $(eval $(call gen_espidf_lib_rule,ethernet,$(ESPIDF_ETHERNET_O)))
 endif
 
+include $(ADF_PATH)/micropython_adf/mpadfobj.mk
+
 # Create all destination build dirs before compiling IDF source
 OBJ_ESPIDF_DIRS = $(sort $(dir $(OBJ_ESPIDF))) $(BUILD_ESPIDF_LIB) $(addprefix $(BUILD_ESPIDF_LIB)/,$(LIB_ESPIDF))
 $(OBJ_ESPIDF): | $(OBJ_ESPIDF_DIRS)
@@ -718,6 +731,7 @@ APP_LD_ARGS += -L$(ESPCOMP)/esp32/lib -lcore -lmesh -lnet80211 -lphy -lrtc -lpp 
 endif
 APP_LD_ARGS += $(OBJ)
 APP_LD_ARGS += $(LIB)
+include $(ADF_PATH)/micropython_adf/mpadflibs.mk
 APP_LD_ARGS += --end-group
 
 $(BUILD)/esp32_out.ld: $(SDKCONFIG_H)
@@ -725,10 +739,12 @@ $(BUILD)/esp32_out.ld: $(SDKCONFIG_H)
 
 $(BUILD)/application.bin: $(BUILD)/application.elf
 	$(ECHO) "Create $@"
+	$(ECHO) $(Q)$(ESPTOOL) --chip esp32 elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
 	$(Q)$(ESPTOOL) --chip esp32 elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
 
 $(BUILD)/application.elf: $(OBJ) $(LIB) $(BUILD)/esp32_out.ld $(BUILD)/esp32.project.ld
 	$(ECHO) "LINK $@"
+	$(ECHO) $(Q)$(LD) $(LDFLAGS) -o $@ $(APP_LD_ARGS)
 	$(Q)$(LD) $(LDFLAGS) -o $@ $(APP_LD_ARGS)
 	$(Q)$(SIZE) $@
 
@@ -911,6 +927,7 @@ $(BUILD)/bootloader/%.o: %.c
 
 $(BUILD)/bootloader.bin: $(BUILD)/bootloader.elf
 	$(ECHO) "Create $@"
+	$(ECHO) $(Q)$(ESPTOOL) --chip esp32 elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
 	$(Q)$(ESPTOOL) --chip esp32 elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
 
 $(BUILD)/bootloader.elf: $(BOOTLOADER_OBJ) $(addprefix $(BOOTLOADER_LIB_DIR)/lib,$(addsuffix .a,$(BOOTLOADER_LIB_ALL)))
